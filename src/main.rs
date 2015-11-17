@@ -1,9 +1,16 @@
 extern crate tak;
 extern crate iron;
 
-
+use std::str::FromStr;
+use std::env;
 use iron::prelude::*;
 use iron::status;
+
+/// Look up our server port number in PORT, for compatibility with Heroku.
+fn get_server_port() -> u16 {
+    let port_str = env::var("PORT").unwrap_or(String::new());
+    FromStr::from_str(&port_str).unwrap_or(8080)
+}
 
 fn main() {
     Iron::new(|req: &mut Request| -> IronResult<Response> {
@@ -26,6 +33,6 @@ fn main() {
             None => format!("{}", &game),
         };
         Ok(Response::with((status::Ok, response)))
-    }).http("localhost:3000").unwrap();
+    }).http(("0.0.0.0", get_server_port())).unwrap();
     println!("On 3000");
 }

@@ -8,6 +8,14 @@ license = "MIT"
 readme = "README.md"
 description = "Server for playing Tak (from the Kingkiller Chronicles)"
 
+[features]
+# This allows us to use `#[cfg(unstable)]` to conditionalize the use of
+# unstable Rust features from the nightly builds.  This is handy if we want
+# to use, say, benchmaking from the `test` library when available.  Also,
+# `travis-cargo` expects this to be here when building against the nightly
+# version of Cargo.
+unstable = []
+
 [dependencies]
 iron = "*"
 tak="*"
