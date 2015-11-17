@@ -1,0 +1,8 @@
+[package]
+name = "tak-server"
+version = "0.1.0"
+authors = ["Matt Wismer <mattwis86@gmail.com>"]
+
+[dependencies]
+iron = "*"
+tak="*"
