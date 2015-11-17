@@ -2,6 +2,11 @@
 name = "tak-server"
 version = "0.1.0"
 authors = ["Matt Wismer <mattwis86@gmail.com>"]
+repository = "https://github.com/MattWis/tak-server.git"
+homepage = "https://github.com/MattWis/tak-server.git"
+license = "MIT"
+readme = "README.md"
+description = "Server for playing Tak (from the Kingkiller Chronicles)"
 
 [dependencies]
 iron = "*"
