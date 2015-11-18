@@ -17,5 +17,6 @@ description = "Server for playing Tak (from the Kingkiller Chronicles)"
 unstable = []
 
 [dependencies]
+persistent = "*"
 iron = "*"
 tak="*"
