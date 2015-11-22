@@ -19,4 +19,6 @@ unstable = []
 [dependencies]
 persistent = "*"
 iron = "*"
+params = "*"
+router = "*"
 tak="*"

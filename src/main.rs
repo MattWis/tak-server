@@ -1,14 +1,41 @@
 extern crate tak;
 extern crate iron;
 extern crate persistent;
+#[macro_use]
+extern crate router;
+extern crate params;
 
 use std::str::FromStr;
 use std::env;
 use std::collections::HashMap;
 use iron::prelude::*;
 use iron::status;
+use iron::mime::Mime;
 use persistent::Write;
 use iron::typemap::Key;
+
+
+fn wrap_html(body: String) -> String {
+    format!("<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01//EN\"\
+            \"http://www.w3.org/TR/html4/strict.dt\">\n\
+             <html lang=\"en\">\n<head>\n\
+             <meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\">\n\
+             <title>Tak Online</title>\n</head>\n\
+             <body>\n<div>{}</div>\n</body>\n</html>", body).into()
+}
+
+fn respond_html(body: String) -> IronResult<Response> {
+    let html = wrap_html(body);
+    let content_type = "text/html".parse::<Mime>().unwrap();
+    Ok(Response::with((content_type, status::Ok, html)))
+}
+
+fn respond_game(text: &tak::Game) -> IronResult<Response> {
+    respond_html(format!("<body><pre>{}</pre><form method=\"POST\">
+            <input type=\"text\" name=\"turn\"></input><br>
+            <input type=\"submit\" value=\"Submit Move\"></input>
+            </form> </body>", text))
+}
 
 /// Look up our server port number in PORT, for compatibility with Heroku.
 fn get_server_port() -> u16 {
@@ -19,43 +46,63 @@ fn get_server_port() -> u16 {
 #[derive(Copy, Clone)]
 pub struct Games;
 
-impl Key for Games { type Value = HashMap<String, tak::Board>; }
+impl Key for Games { type Value = HashMap<String, tak::Game>; }
+
+fn list_games(req: &mut Request) -> IronResult<Response> {
+    let mutex = req.get::<Write<Games>>().unwrap();
+    let map = mutex.lock().unwrap();
+    let mut response: String = "Games Being Played<br><br>".into();
+    for (key, _) in map.iter() {
+        response.push_str(&(format!("{}<br>", key)));
+    }
+    respond_html(response)
+}
 
 fn serve_game(req: &mut Request) -> IronResult<Response> {
-    println!("{:?}", &req.url.path);
+    let mutex = req.get::<Write<Games>>().unwrap();
+    let key: String = req.extensions.get::<router::Router>().unwrap().find("gameId").unwrap().into();
+    let mut map = mutex.lock().unwrap();
+    if !map.contains_key(&key) {
+        map.insert(key.clone(), tak::Game::new(5));
+    }
+    let game = map.get(&key).unwrap();
+
+    respond_game(&game)
+}
+
+fn play_move(req: &mut Request) -> IronResult<Response> {
     let mutex = req.get::<Write<Games>>().unwrap();
     let mut map = mutex.lock().unwrap();
-    let key = &req.url.path[0];
+    let key: String = req.extensions.get::<router::Router>().unwrap().find("gameId").unwrap().into();
 
-    if !map.contains_key(key) {
-        map.insert((*key).clone(), tak::Board::new(5));
-    }
-    let mut game = map.get_mut(key).unwrap();
-
-    for turn in &req.url.path[1..] {
-        let formatted = format!("Illegal move: {}", turn);
-        let error = Response::with((status::Ok, formatted));
-        match turn.parse::<tak::Turn>() {
-            Ok(turn) => match tak::play(&turn, &mut game) {
-                Ok(_) => (),
-                Err(_) => return Ok(error),
-            },
-            Err(_) => return Ok(error),
-        }
-    }
-    let response = match game.check_winner() {
-        Some(tak::Player::One) => format!("{}\n Player 1 Wins!", &game),
-        Some(tak::Player::Two) => format!("{}\n Player 2 Wins!", &game),
-        None => format!("{}", &game),
+    let mut game = match map.get_mut(&key) {
+        Some(game) => game,
+        None => return respond_html("No such game".into()),
     };
 
-    Ok(Response::with((status::Ok, response)))
+    let turn: String = match req.get_ref::<params::Params>() {
+        Ok(map) => match map.get("turn") {
+            Some(turn) => match turn {
+                &params::Value::String(ref s) => s.clone(),
+                _ => return respond_html("Bad parsing".into()),
+            },
+            None => return respond_html("Bad parsing".into()),
+        },
+        Err(_) => return respond_html("Bad parsing".into()),
+    };
+
+    match game.play(&turn) {
+        Ok(_) => respond_game(&game),
+        Err(_) => respond_html(format!("Illegal move: {}", turn)),
+    }
 }
 
 
 fn main() {
-    let mut chain = Chain::new(serve_game);
+    let router = router!(get "/" => list_games,
+                         get "/game/:gameId" => serve_game,
+                         post "/game/:gameId" => play_move);
+    let mut chain = Chain::new(router);
     chain.link(Write::<Games>::both(HashMap::new()));
     Iron::new(chain).http(("0.0.0.0", get_server_port())).unwrap();
-    println!("On 3000");
 }
