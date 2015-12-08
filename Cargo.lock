@@ -7,8 +7,9 @@ dependencies = [
  "params 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "persistent 0.0.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "router 0.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "staticfile 0.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "tak 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tak 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -349,8 +350,11 @@ dependencies = [
 
 [[package]]
 name = "tak"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "rustc-serialize 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "tempdir"

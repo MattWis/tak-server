@@ -7,7 +7,8 @@
     </style>
   </head>
   <body>
-    <script src="/three.min.js"></script>
+    <script src="/js/three.min.js"></script>
+    <script src="/js/jquery.min.js"></script>
     <script>
       var scene = new THREE.Scene();
       var pieces = 5;
@@ -22,6 +23,7 @@
       renderer.setSize( window.innerWidth, window.innerHeight );
       document.body.appendChild( renderer.domElement );
 
+      // Create board out of thin squares
       for (var i = 0; i < pieces; i++) {
         for (var j = 0; j < pieces; j++) {
           var box = new THREE.BoxGeometry(2, 2, 0.01, 32);
@@ -37,23 +39,40 @@
           scene.add(block);
         }
       }
-      var p1_material = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
-      var p2_material = new THREE.MeshBasicMaterial( { color: 0xffffff } );
-      var cap = new THREE.SphereGeometry(0.5, 32, 32, 0, Math.PI, 0, Math.PI );
-      var capstone = new THREE.Mesh( cap, p1_material );
-      var flat = new THREE.BoxGeometry(1, 1, 0.25);
-      var flatstone = new THREE.Mesh( flat, p2_material );
-      var flatstone2 = new THREE.Mesh( flat, p2_material );
-      scene.add( capstone );
-      scene.add( flatstone );
-      scene.add( flatstone2 );
-      flatstone.position.y = 4;
-      flatstone.position.x = 4;
-      flatstone.rotation.x = Math.PI/2;
-      flatstone.rotation.y = -Math.PI/4;
-      flatstone.position.z = 0.5;
-      flatstone2.position.x = 8;
-      flatstone2.position.y = 8;
+
+      // Place stones from request
+      $.get("/json/a", function(data, status) {
+        var grid = data.board.grid;
+        for (var i = 0; i < grid.length; i++) {
+          for (var j = 0; j < grid.length; j++) {
+            var cell = grid[i][j].pieces;
+            for (var k = 0; k < cell.length; k++) {
+              var piece = cell[k];
+              if (piece.owner == "One") {
+                var material = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
+              } else {
+                var material = new THREE.MeshBasicMaterial( { color: 0xffffff } );
+              }
+
+              if (piece.stone == "Capstone") {
+                var mesh = new THREE.SphereGeometry(0.5, 32, 32, 0, Math.PI, 0, Math.PI );
+              } else {
+                var mesh = new THREE.BoxGeometry(1, 1, 0.25);
+              }
+              var stone = new THREE.Mesh( mesh, material);
+
+              if (piece.stone == "Standing") {
+                stone.rotation.x = Math.PI/2;
+                stone.rotation.y = -Math.PI/4;
+                stone.position.z = 0.5;
+              }
+              stone.position.x = 2 * i;
+              stone.position.y = 2 * j;
+              scene.add(stone);
+            }
+          }
+        }
+      });
 
       var render = function () {
         requestAnimationFrame( render );

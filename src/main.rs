@@ -6,6 +6,7 @@ extern crate router;
 extern crate params;
 extern crate mount;
 extern crate staticfile;
+extern crate rustc_serialize;
 
 use std::str::FromStr;
 use std::env;
@@ -18,6 +19,7 @@ use iron::typemap::Key;
 use persistent::Write;
 use mount::Mount;
 use staticfile::Static;
+use rustc_serialize::json;
 
 
 fn wrap_html(body: String) -> String {
@@ -75,6 +77,19 @@ fn serve_game(req: &mut Request) -> IronResult<Response> {
     respond_game(&game)
 }
 
+fn game_json(req: &mut Request) -> IronResult<Response> {
+    let mutex = req.get::<Write<Games>>().unwrap();
+    let key: String = req.extensions.get::<router::Router>().unwrap().find("gameId").unwrap().into();
+    let mut map = mutex.lock().unwrap();
+    if !map.contains_key(&key) {
+        map.insert(key.clone(), tak::Game::new(5));
+    }
+    let game = map.get(&key).unwrap();
+
+    let content_type = "text/json".parse::<Mime>().unwrap();
+    Ok(Response::with((content_type, status::Ok, json::encode(&game).unwrap())))
+}
+
 fn play_move(req: &mut Request) -> IronResult<Response> {
     let mutex = req.get::<Write<Games>>().unwrap();
     let mut map = mutex.lock().unwrap();
@@ -105,13 +120,13 @@ fn play_move(req: &mut Request) -> IronResult<Response> {
 fn main() {
     let router = router!(get "/" => list_games,
                          get "/game/:gameId" => serve_game,
+                         get "/json/:gameId" => game_json,
                          post "/game/:gameId" => play_move);
     let mut chain = Chain::new(router);
     chain.link(Write::<Games>::both(HashMap::new()));
-    // Serve the shared JS/CSS at /
     let mut mount = Mount::new();
-    mount.mount("/", chain);
-    mount.mount("/", Static::new(Path::new("js/")));
+    mount.mount("/js", Static::new(Path::new("js/")));
     mount.mount("/three", Static::new(Path::new("html/three.html")));
+    mount.mount("/", chain);
     Iron::new(mount).http(("0.0.0.0", get_server_port())).unwrap();
 }
