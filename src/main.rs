@@ -4,15 +4,20 @@ extern crate persistent;
 #[macro_use]
 extern crate router;
 extern crate params;
+extern crate mount;
+extern crate staticfile;
 
 use std::str::FromStr;
 use std::env;
 use std::collections::HashMap;
+use std::path::Path;
 use iron::prelude::*;
 use iron::status;
 use iron::mime::Mime;
-use persistent::Write;
 use iron::typemap::Key;
+use persistent::Write;
+use mount::Mount;
+use staticfile::Static;
 
 
 fn wrap_html(body: String) -> String {
@@ -97,12 +102,16 @@ fn play_move(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-
 fn main() {
     let router = router!(get "/" => list_games,
                          get "/game/:gameId" => serve_game,
                          post "/game/:gameId" => play_move);
     let mut chain = Chain::new(router);
     chain.link(Write::<Games>::both(HashMap::new()));
-    Iron::new(chain).http(("0.0.0.0", get_server_port())).unwrap();
+    // Serve the shared JS/CSS at /
+    let mut mount = Mount::new();
+    mount.mount("/", chain);
+    mount.mount("/", Static::new(Path::new("js/")));
+    mount.mount("/three", Static::new(Path::new("html/three.html")));
+    Iron::new(mount).http(("0.0.0.0", get_server_port())).unwrap();
 }
