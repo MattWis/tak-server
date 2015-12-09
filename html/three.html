@@ -10,6 +10,13 @@
     <script src="/js/three.min.js"></script>
     <script src="/js/jquery.min.js"></script>
     <script>
+      var player = null;
+      var url = window.location.href.split("/");
+      var gameId = url[url.length - 1];
+      $.get("/game/" + gameId + "/player", function(data, status) {
+        player = data.player;
+      });
+
       var scene = new THREE.Scene();
       var pieces = 5;
       var aspect = window.innerWidth / window.innerHeight;
@@ -73,9 +80,8 @@
       }
 
       // Place stones based on current URL
-      var url = window.location.href.split("/");
       function refresh() {
-        $.get("/json/" + url[url.length - 1], function(data, status) {
+        $.get("/json/" + gameId, function(data, status) {
           var grid = data.board.grid;
           for (var i = 0; i < grid.length; i++) {
             for (var j = 0; j < grid.length; j++) {
@@ -98,27 +104,29 @@
 
       function onDocumentMouseDown(event) {
         event.preventDefault();
-        var mouse = new THREE.Vector2();
-        mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
-        mouse.y = -(event.clientY / renderer.domElement.clientHeight) * 2 + 1;
+        if (player != null) {
+          var mouse = new THREE.Vector2();
+          mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
+          mouse.y = -(event.clientY / renderer.domElement.clientHeight) * 2 + 1;
 
-        var raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(mouse, camera);
-        var intersects = raycaster.intersectObjects(scene.children);
+          var raycaster = new THREE.Raycaster();
+          raycaster.setFromCamera(mouse, camera);
+          var intersects = raycaster.intersectObjects(scene.children);
 
-        if ( intersects.length > 0 ) {
-          var xs = "abcdefgh";
-          var ys = "12345678";
-          var x = intersects[0].object.position.x / 2 + 1;
-          var y = intersects[0].object.position.y / 2 + 1;
+          if ( intersects.length > 0 ) {
+            var xs = "abcdefgh";
+            var ys = "12345678";
+            var x = intersects[0].object.position.x / 2;
+            var y = intersects[0].object.position.y / 2;
 
-          var postData = {"turn": xs[x] + ys[y] + "F1"};
-          $.post("/game/" + url[url.length - 1], postData, function(data, textStatus, jqXHR) {
-            console.log(data);
-            console.log(textStatus);
-          });
-          console.log("/game/" + url[url.length - 1]);
-          console.log(xs[x] + ys[y] + "F1");
+            var postData = {"turn": xs[x] + ys[y] + "F" + player};
+            $.post("/game/" + gameId, postData, function(data, status, x) {
+              console.log(data);
+              console.log(status);
+            });
+            console.log("/game/" + gameId);
+            console.log(postData);
+          }
         }
       }
       document.addEventListener('mousedown', onDocumentMouseDown, false);

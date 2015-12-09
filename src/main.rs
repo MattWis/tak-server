@@ -53,7 +53,20 @@ fn get_server_port() -> u16 {
 #[derive(Copy, Clone)]
 pub struct Games;
 
-impl Key for Games { type Value = HashMap<String, tak::Game>; }
+pub struct Match {
+    game: tak::Game,
+    p1_claimed: bool,
+    p2_claimed: bool,
+}
+
+impl Match {
+    fn new(size: usize) -> Match {
+        Match { game: tak::Game::new(size), p1_claimed: false, p2_claimed: false }
+    }
+}
+
+
+impl Key for Games { type Value = HashMap<String, Match>; }
 
 fn list_games(req: &mut Request) -> IronResult<Response> {
     let mutex = req.get::<Write<Games>>().unwrap();
@@ -70,11 +83,11 @@ fn serve_game(req: &mut Request) -> IronResult<Response> {
     let key: String = req.extensions.get::<router::Router>().unwrap().find("gameId").unwrap().into();
     let mut map = mutex.lock().unwrap();
     if !map.contains_key(&key) {
-        map.insert(key.clone(), tak::Game::new(5));
+        map.insert(key.clone(), Match::new(5));
     }
-    let game = map.get(&key).unwrap();
+    let game = &map.get(&key).unwrap().game;
 
-    respond_game(&game)
+    respond_game(game)
 }
 
 fn game_json(req: &mut Request) -> IronResult<Response> {
@@ -82,12 +95,34 @@ fn game_json(req: &mut Request) -> IronResult<Response> {
     let key: String = req.extensions.get::<router::Router>().unwrap().find("gameId").unwrap().into();
     let mut map = mutex.lock().unwrap();
     if !map.contains_key(&key) {
-        map.insert(key.clone(), tak::Game::new(5));
+        map.insert(key.clone(), Match::new(5));
     }
-    let game = map.get(&key).unwrap();
+    let game = &map.get(&key).unwrap().game;
 
     let content_type = "text/json".parse::<Mime>().unwrap();
-    Ok(Response::with((content_type, status::Ok, json::encode(&game).unwrap())))
+    Ok(Response::with((content_type, status::Ok, json::encode(game).unwrap())))
+}
+
+fn claim_player(req: &mut Request) -> IronResult<Response> {
+    let mutex = req.get::<Write<Games>>().unwrap();
+    let key: String = req.extensions.get::<router::Router>().unwrap().find("gameId").unwrap().into();
+    let mut map = mutex.lock().unwrap();
+    if !map.contains_key(&key) {
+        map.insert(key.clone(), Match::new(5));
+    }
+    let mut game = map.get_mut(&key).unwrap();
+
+    let content_type = "text/json".parse::<Mime>().unwrap();
+    if !game.p1_claimed {
+        game.p1_claimed = true;
+        Ok(Response::with((content_type, status::Ok, "{\"player\": 1}")))
+    } else if !game.p2_claimed {
+        game.p2_claimed = true;
+        Ok(Response::with((content_type, status::Ok, "{\"player\": 2}")))
+    } else {
+        Ok(Response::with((content_type, status::Ok, "{\"player\": null}")))
+    }
+
 }
 
 fn play_move(req: &mut Request) -> IronResult<Response> {
@@ -111,8 +146,8 @@ fn play_move(req: &mut Request) -> IronResult<Response> {
         Err(_) => return respond_html("Bad parsing".into()),
     };
 
-    match game.play(&turn) {
-        Ok(_) => respond_game(&game),
+    match game.game.play(&turn) {
+        Ok(_) => respond_game(&game.game),
         Err(_) => respond_html(format!("Illegal move: {}", turn)),
     }
 }
@@ -125,6 +160,7 @@ fn main() {
                          get "/json/:gameId" => game_json,
                          get "/game/:gameId" => serve_game,
                          get "/three/:gameId" => view_game,
+                         get "/game/:gameId/player" => claim_player,
                          post "/game/:gameId" => play_move);
     let mut chain = Chain::new(router);
     chain.link(Write::<Games>::both(HashMap::new()));
