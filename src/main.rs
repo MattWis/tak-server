@@ -116,17 +116,21 @@ fn play_move(req: &mut Request) -> IronResult<Response> {
         Err(_) => respond_html(format!("Illegal move: {}", turn)),
     }
 }
+fn view_game(_: &mut Request) -> IronResult<Response> {
+    Ok(Response::with((status::Ok, Path::new("html/three.html"))))
+}
 
 fn main() {
     let router = router!(get "/" => list_games,
-                         get "/game/:gameId" => serve_game,
                          get "/json/:gameId" => game_json,
+                         get "/game/:gameId" => serve_game,
+                         get "/three/:gameId" => view_game,
                          post "/game/:gameId" => play_move);
     let mut chain = Chain::new(router);
     chain.link(Write::<Games>::both(HashMap::new()));
     let mut mount = Mount::new();
     mount.mount("/js", Static::new(Path::new("js/")));
-    mount.mount("/three", Static::new(Path::new("html/three.html")));
+    //mount.mount("/three", Static::new(Path::new("html/three.html")));
     mount.mount("/", chain);
     Iron::new(mount).http(("0.0.0.0", get_server_port())).unwrap();
 }

@@ -40,8 +40,12 @@
         }
       }
 
-      // Place stones from request
-      $.get("/json/a", function(data, status) {
+      var materials = [ 1,
+        new THREE.MeshBasicMaterial( { color: 0x000000, shading: THREE.FlatShading, wireframe: true, transparent: true } )
+      ];
+      // Place stones based on current URL
+      var url = window.location.href.split("/");
+      $.get("/json/" + url[url.length - 1], function(data, status) {
         var grid = data.board.grid;
         for (var i = 0; i < grid.length; i++) {
           for (var j = 0; j < grid.length; j++) {
@@ -49,25 +53,29 @@
             for (var k = 0; k < cell.length; k++) {
               var piece = cell[k];
               if (piece.owner == "One") {
-                var material = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
+                materials[0] = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
               } else {
-                var material = new THREE.MeshBasicMaterial( { color: 0xffffff } );
+                materials[0] = new THREE.MeshBasicMaterial( { color: 0xffffff } );
               }
 
               if (piece.stone == "Capstone") {
                 var mesh = new THREE.SphereGeometry(0.5, 32, 32, 0, Math.PI, 0, Math.PI );
+                var stone = new THREE.Mesh(mesh, materials[0]);
               } else {
                 var mesh = new THREE.BoxGeometry(1, 1, 0.25);
+                var stone = new THREE.SceneUtils.createMultiMaterialObject(mesh, materials);
+                if (piece.stone == "Standing") {
+                  stone.rotation.x = Math.PI/2;
+                  stone.rotation.y = -Math.PI/4;
+                  stone.position.z = 0.5;
+                } else if (piece.stone = "Flat") {
+                  stone.position.z = 0.15;
+                }
               }
-              var stone = new THREE.Mesh( mesh, material);
 
-              if (piece.stone == "Standing") {
-                stone.rotation.x = Math.PI/2;
-                stone.rotation.y = -Math.PI/4;
-                stone.position.z = 0.5;
-              }
-              stone.position.x = 2 * i;
-              stone.position.y = 2 * j;
+              stone.position.x = 2 * j;
+              stone.position.y = 2 * i;
+              stone.position.z += 0.3 * k;
               scene.add(stone);
             }
           }
