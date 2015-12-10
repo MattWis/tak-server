@@ -157,10 +157,10 @@ fn view_game(_: &mut Request) -> IronResult<Response> {
 
 fn main() {
     let router = router!(get "/" => list_games,
-                         get "/json/:gameId" => game_json,
-                         get "/game/:gameId" => serve_game,
-                         get "/three/:gameId" => view_game,
+                         get "/game/:gameId" => view_game,
                          get "/game/:gameId/player" => claim_player,
+                         get "/game/:gameId/json" => game_json,
+                         get "/game/:gameId/text" => serve_game,
                          post "/game/:gameId" => play_move);
     let mut chain = Chain::new(router);
     chain.link(Write::<Games>::both(HashMap::new()));
