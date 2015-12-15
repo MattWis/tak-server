@@ -135,18 +135,36 @@ fn play_move(req: &mut Request) -> IronResult<Response> {
         None => return respond_html("No such game".into()),
     };
 
-    let turn: String = match req.get_ref::<params::Params>() {
-        Ok(map) => match map.get("turn") {
-            Some(turn) => match turn {
-                &params::Value::String(ref s) => s.clone(),
-                _ => return respond_html("Bad parsing".into()),
-            },
-            None => return respond_html("Bad parsing".into()),
-        },
+    let map = match req.get_ref::<params::Params>() {
+        Ok(map) => map,
         Err(_) => return respond_html("Bad parsing".into()),
     };
 
-    match game.game.play(&turn) {
+    let turn: String = match map.get("turn") {
+        Some(turn) => match turn {
+            &params::Value::String(ref s) => s.clone(),
+            _ => return respond_html("Bad parsing".into()),
+        },
+        None => return respond_html("Bad parsing".into()),
+    };
+
+    let player: String = match map.get("player") {
+        Some(player) => match player {
+            &params::Value::String(ref s) => s.clone(),
+            _ => return respond_html("Bad parsing".into()),
+        },
+        None => return respond_html("Bad parsing".into()),
+    };
+
+    let player: tak::Player = if player == "1" {
+        tak::Player::One
+    } else if player == "2" {
+        tak::Player::Two
+    } else {
+        return respond_html("Bad parsing".into());
+    };
+
+    match game.game.play(&turn, player) {
         Ok(_) => respond_game(&game.game),
         Err(_) => respond_html(format!("Illegal move: {}", turn)),
     }
@@ -166,6 +184,7 @@ fn main() {
     chain.link(Write::<Games>::both(HashMap::new()));
     let mut mount = Mount::new();
     mount.mount("/js", Static::new(Path::new("js/")));
+    mount.mount("/images", Static::new(Path::new("images/")));
     //mount.mount("/three", Static::new(Path::new("html/three.html")));
     mount.mount("/", chain);
     Iron::new(mount).http(("0.0.0.0", get_server_port())).unwrap();
