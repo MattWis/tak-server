@@ -71,9 +71,17 @@ impl Key for Games { type Value = HashMap<String, Match>; }
 fn list_games(req: &mut Request) -> IronResult<Response> {
     let mutex = req.get::<Write<Games>>().unwrap();
     let map = mutex.lock().unwrap();
-    let mut response: String = "Games Being Played<br><br>".into();
-    for (key, _) in map.iter() {
-        response.push_str(&(format!("{}<br>", key)));
+    let mut response: String = "<h1>Games Looking For Player</h1>".into();
+    for (key, game) in map.iter() {
+        if game.p1_claimed && !game.p2_claimed {
+            response.push_str(&(format!("<a href=\"/game/{}\">{0}</a><br>", key)));
+        }
+    }
+    response.push_str("<h1>Games Being Played</h1>");
+    for (key, game) in map.iter() {
+        if game.p1_claimed && game.p2_claimed {
+            response.push_str(&(format!("<a href=\"/game/{}\">{0}</a><br>", key)));
+        }
     }
     respond_html(response)
 }

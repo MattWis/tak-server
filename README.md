@@ -23,9 +23,6 @@ for the current input state.
 
 ## TODO
 
-1. Homepage: Links to games.
-2. Homepage: Sort games by number of players (Looking for player vs in progress)
-3. Game page: Constrain player to make certain moves.
-4. Game page: Display when game is won.
-5. Game page: Highlight things to make it more obvious what to click next.
-6. Game page: Show in-progress slides?
+1. Game page: Display when game is won.
+2. Game page: Highlight things to make it more obvious what to click next.
+3. Game page: Show in-progress slides?
