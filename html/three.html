@@ -8,10 +8,10 @@
     </style>
   </head>
   <body>
-    <div>
-      <p id="p1" style="float: left; padding-left: 40px"> P1 Capstones: 0/1<br> P1 Flats: 0/20</p>
-      <p id="p2" style="float: right; padding-right: 40px">P2 Capstones: 0/1<br> P2 Flats: 0/20</p>
-    </div>
+    <!--<div>-->
+      <!--<p id="p1" style="float: left; padding-left: 40px"> P1 Capstones: 0/1<br> P1 Flats: 0/20</p>-->
+      <!--<p id="p2" style="float: right; padding-right: 40px">P2 Capstones: 0/1<br> P2 Flats: 0/20</p>-->
+    <!--</div>-->
     <script src="/js/three.min.js"></script>
     <script src="/js/jquery.min.js"></script>
     <script>
@@ -178,6 +178,8 @@
 
             console.log(x + ", " + y);
             actOnClick(x, y);
+          } else {
+            move.type = null;
           }
         }
       }
@@ -203,8 +205,8 @@
             var cell = grid[grid_y][grid_x].pieces;
             if (cell.length > 0) {
               move.type = "slide";
-              move.data = null;
-              move.extra = { len: cell.length, current: 0, x: grid_x, y: grid_y };
+              move.data = [];
+              move.extra = { num_moved: cell.length, len: cell.length, current: 0, x: grid_x, y: grid_y };
               move.place = xs[grid_x] + ys[grid_y];
             }
           }
@@ -220,26 +222,26 @@
         // Continue slide
         } else if (move.type == "slide") {
           // Established direction
-          if (move.data != null && "RLUD".indexOf(move.data[0]) > -1) {
+          if ("<>+-".indexOf(move.place[2]) > -1) {
             if (grid_x == move.extra.x) {
               if (grid_y == move.extra.y) {
-                move.data += "0";
+                move.data[move.data.length - 1] += 1;
                 updateSlide(grid_x, grid_y);
-              } else if (grid_y > move.extra.y && move.data[0] == "U") {
-                move.data += grid_y - move.extra.y;
+              } else if (grid_y - move.extra.y == 1 && move.place[2] == "+") {
+                move.data.push(1);
                 updateSlide(grid_x, grid_y);
-              } else if (grid_y < move.extra.y && move.data[0] == "D") {
-                move.data += move.extra.y - grid_y;
+              } else if (move.extra.y - grid_y == 1 && move.place[2] == "-") {
+                move.data.push(1);
                 updateSlide(grid_x, grid_y);
               } else {
                 move.type = null;
               }
-            } else if (grid_y = move.extra.y) {
-              if (grid_x > move.extra.x && move.data[0] == "R") {
-                move.data += grid_x - move.extra.x;
+            } else if (grid_y == move.extra.y) {
+              if (grid_x - move.extra.x == 1 && move.place[2] == ">") {
+                move.data.push(1);
                 updateSlide(grid_x, grid_y);
-              } else if (grid_x < move.extra.x && move.data[0] == "L") {
-                move.data += move.extra.x - grid_x;
+              } else if (move.extra.x - grid_x == 1 && move.place[2] == "<") {
+                move.data.push(1);
                 updateSlide(grid_x, grid_y);
               } else {
                 move.type = null;
@@ -247,46 +249,23 @@
             } else {
               move.type = null;
             }
+          // Determine direction
           } else if (grid_x == move.extra.x) {
-            if (grid_y - move.extra.y == 1) {
-              if (move.data != null) {
-                move.data = "U" + move.data + "1";
-              } else {
-                move.data = "U1";
-              }
+            if (grid_y == move.extra.y) {
+              move.extra.num_moved -= 1;
               updateSlide(grid_x, grid_y);
+            } else if (grid_y - move.extra.y == 1) {
+              startSlide(grid_x, grid_y, "+");
             } else if (grid_y - move.extra.y == -1) {
-              if (move.data != null) {
-                move.data = "D" + move.data + "1";
-              } else {
-                move.data = "D1";
-              }
-              updateSlide(grid_x, grid_y);
-            } else if (grid_y == move.extra.y) {
-              if (move.data != null) {
-                move.data += "0";
-              } else {
-                move.data = "0";
-              }
-              updateSlide(grid_x, grid_y);
+              startSlide(grid_x, grid_y, "-");
             } else {
               move.type = null;
             }
           } else if (grid_y == move.extra.y) {
             if (grid_x - move.extra.x == 1) {
-              if (move.data != null) {
-                move.data = "R" + move.data + "1";
-              } else {
-                move.data = "R1";
-              }
-              updateSlide(grid_x, grid_y);
+              startSlide(grid_x, grid_y, ">");
             } else if (grid_x - move.extra.x == -1) {
-              if (move.data != null) {
-                move.data = "L" + move.data + "1"
-              } else {
-                move.data = "L1";
-              }
-              updateSlide(grid_x, grid_y);
+              startSlide(grid_x, grid_y, "<");
             } else {
               move.type = null;
             }
@@ -299,9 +278,24 @@
         console.log(move);
       }
 
+      function startSlide(grid_x, grid_y, c) {
+        move.place += c;
+        move.data.push(1);
+        updateSlide(grid_x, grid_y);
+      }
+
       function updateSlide(x, y) {
+        move.extra.x = x;
+        move.extra.y = y;
         move.extra.current += 1;
         if (move.extra.current == move.extra.len) {
+          // Prepare PTN move as move.place + move.data
+          var str = "";
+          for (var i = 0; i < move.data.length; i++) {
+            str += move.data[i];
+          }
+          move.place = move.extra.num_moved + move.place;
+          move.data = str;
           postMove();
         }
       }
