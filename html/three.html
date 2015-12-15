@@ -8,20 +8,47 @@
     </style>
   </head>
   <body>
+    <div>
+      <p id="p1" style="float: left; padding-left: 40px"> P1 Capstones: 0/1<br> P1 Flats: 0/20</p>
+      <p id="p2" style="float: right; padding-right: 40px">P2 Capstones: 0/1<br> P2 Flats: 0/20</p>
+    </div>
     <script src="/js/three.min.js"></script>
     <script src="/js/jquery.min.js"></script>
     <script>
       var player = null;
       var url = window.location.href.split("/");
       var gameId = url[url.length - 1];
-      var white_texture = THREE.ImageUtils.loadTexture( '../images/white_piece.png' );
-      var black_texture = THREE.ImageUtils.loadTexture( '../images/black_piece.png' );
-      var p1_material = new THREE.MeshBasicMaterial( { map: white_texture } );;
-      var p2_material = new THREE.MeshBasicMaterial( { map: black_texture } );;
       var capstone = new THREE.SphereGeometry(0.5, 32, 32, 0, Math.PI, 0, Math.PI );
       var flatstone = new THREE.BoxGeometry(1, 1, 0.25);
       var grid = null;
       var board_parts = [];
+
+      var p1_material, p2_material, white_square, black_square = null;
+      var loader = new THREE.TextureLoader();
+      loader.load("../images/white_piece.png", function(texture) {
+        p1_material = new THREE.MeshBasicMaterial( { map: texture } );;
+        if (p1_material && p2_material && white_square && black_square) {
+          draw_board();
+        }
+      });
+      loader.load("../images/black_piece.png", function(texture) {
+        p2_material = new THREE.MeshBasicMaterial( { map: texture } );;
+        if (p1_material && p2_material && white_square && black_square) {
+          draw_board();
+        }
+      });
+      loader.load("../images/white_square.png", function(texture) {
+        white_square = new THREE.MeshBasicMaterial( { map: texture } );;
+        if (p1_material && p2_material && white_square && black_square) {
+          draw_board();
+        }
+      });
+      loader.load("../images/black_square.png", function(texture) {
+        black_square = new THREE.MeshBasicMaterial( { map: texture } );;
+        if (p1_material && p2_material && white_square && black_square) {
+          draw_board();
+        }
+      });
 
       $.get("/game/" + gameId + "/player", function(data, status) {
         player = data.player;
@@ -30,7 +57,8 @@
       var scene = new THREE.Scene();
       var game_size = 5;
       var aspect = window.innerWidth / window.innerHeight;
-      var camera = new THREE.OrthographicCamera( -1, (2 * game_size - 1) * aspect, 2 * game_size - 1, -1, 1, 1000);
+      var cam_size = 2 * game_size - 1;
+      var camera = new THREE.OrthographicCamera(-1, cam_size * aspect, cam_size, -1, 1, 1000);
       camera.position.x = 2 - game_size;
       camera.position.y = -2 * (game_size + 1);
       camera.position.z = game_size * 2;
@@ -42,6 +70,9 @@
 
 
       function place_piece(piece, i, j, k, part_of_board) {
+        if (p1_material == null || p2_material == null) {
+          return;
+        }
         if (piece.owner == "One") {
           var material = p1_material;
         } else {
@@ -71,33 +102,32 @@
       }
 
 
-      // Create board out of thin squares
-      for (var i = 0; i < game_size; i++) {
-        for (var j = 0; j < game_size; j++) {
-          var box = new THREE.BoxGeometry(2, 2, 0.01, 32);
-          if ((i + j) % 2 == 0) {
-            var black_square = THREE.ImageUtils.loadTexture( '../images/black_square.png' );
-            var material = new THREE.MeshBasicMaterial( { map: black_square } );;
-          } else {
-            var white_square = THREE.ImageUtils.loadTexture( '../images/white_square.png' );
-            var material = new THREE.MeshBasicMaterial( { map: white_square } );;
+      function draw_board() {
+        // Create board out of thin squares
+        for (var i = 0; i < game_size; i++) {
+          for (var j = 0; j < game_size; j++) {
+            var box = new THREE.BoxGeometry(2, 2, 0.01, 32);
+            if ((i + j) % 2 == 0) {
+              var block = new THREE.Mesh(box, black_square);
+            } else {
+              var block = new THREE.Mesh(box, white_square);
+            }
+
+            block.position.x = i * 2;
+            block.position.y = j * 2;
+            board_parts.push(block);
+            scene.add(block);
           }
-
-          var block = new THREE.Mesh(box, material);
-          block.position.x = i * 2;
-          block.position.y = j * 2;
-          board_parts.push(block);
-          scene.add(block);
         }
-      }
 
-      // Create example pieces to click on
-      place_piece({"owner": "One", "stone": "Capstone"}, 4, -1, 0, true);
-      place_piece({"owner": "One", "stone": "Standing"}, 2, -1, 0, true);
-      place_piece({"owner": "One", "stone": "Flat"}, 0, -1, 0, true);
-      place_piece({"owner": "Two", "stone": "Capstone"}, 4, 5, 0, true);
-      place_piece({"owner": "Two", "stone": "Standing"}, 2, 5, 0, true);
-      place_piece({"owner": "Two", "stone": "Flat"}, 0, 5, 0, true);
+        // Create example pieces to click on
+        place_piece({"owner": "One", "stone": "Capstone"}, 4, -1, 0, true);
+        place_piece({"owner": "One", "stone": "Standing"}, 2, -1, 0, true);
+        place_piece({"owner": "One", "stone": "Flat"}, 0, -1, 0, true);
+        place_piece({"owner": "Two", "stone": "Capstone"}, 4, 5, 0, true);
+        place_piece({"owner": "Two", "stone": "Standing"}, 2, 5, 0, true);
+        place_piece({"owner": "Two", "stone": "Flat"}, 0, 5, 0, true);
+      }
 
       // Place stones based on current URL
       function refresh() {
