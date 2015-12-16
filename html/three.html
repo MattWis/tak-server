@@ -14,12 +14,13 @@
     <!--</div>-->
     <script src="/js/three.min.js"></script>
     <script src="/js/jquery.min.js"></script>
+    <script src="/js/OrbitControls.js"></script>
     <script>
       var player = null;
       var url = window.location.href.split("/");
       var gameId = url[url.length - 1];
       var capstone = new THREE.SphereGeometry(0.5, 32, 32, 0, Math.PI, 0, Math.PI );
-      var flatstone = new THREE.BoxGeometry(1, 1, 0.25);
+      var flatstone = new THREE.BoxGeometry(1, 0.25, 1);
       var grid = null;
       var board_parts = [];
 
@@ -58,16 +59,19 @@
       var game_size = 5;
       var aspect = window.innerWidth / window.innerHeight;
       var cam_size = 2 * game_size - 1;
-      var camera = new THREE.OrthographicCamera(-1, cam_size * aspect, cam_size, -1, 1, 1000);
-      camera.position.x = 2 - game_size;
-      camera.position.y = -2 * (game_size + 1);
-      camera.position.z = game_size * 2;
-      camera.rotation.x = Math.PI / 4;
+      var camera = new THREE.PerspectiveCamera(70, aspect, 1, 1000);
+      camera.position.x = 0;
+      camera.position.y = 2 * (game_size + 1);
+      camera.position.z = -2 * game_size;
+      camera.rotation.x = -Math.PI / 4;
 
       var renderer = new THREE.WebGLRenderer();
       renderer.setSize( window.innerWidth, window.innerHeight );
       document.body.appendChild( renderer.domElement );
 
+      var controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.minDistance = 5;
+      controls.maxDistance = 20;
 
       function place_piece(piece, i, j, k, part_of_board) {
         if (p1_material == null || p2_material == null) {
@@ -81,20 +85,21 @@
 
         if (piece.stone == "Capstone") {
           var stone = new THREE.Mesh(capstone, material);
+          stone.rotation.x = -Math.PI / 2;
         } else {
           var stone = new THREE.Mesh(flatstone, material);
           if (piece.stone == "Standing") {
             stone.rotation.x = Math.PI/2;
-            stone.rotation.y = -Math.PI/4;
-            stone.position.z = 0.5;
+            stone.rotation.z = -Math.PI/4;
+            stone.position.y = 0.5;
           } else if (piece.stone = "Flat") {
-            stone.position.z = 0.15;
+            stone.position.y = 0.125;
           }
         }
 
-        stone.position.x = 2 * j;
-        stone.position.y = 2 * i;
-        stone.position.z += 0.3 * k;
+        stone.position.x = game_size - 2 * j;
+        stone.position.z = 2 * i - game_size;
+        stone.position.y += 0.25 * k;
         if (part_of_board) {
           board_parts.push(stone);
         }
@@ -106,15 +111,15 @@
         // Create board out of thin squares
         for (var i = 0; i < game_size; i++) {
           for (var j = 0; j < game_size; j++) {
-            var box = new THREE.BoxGeometry(2, 2, 0.01, 32);
+            var box = new THREE.BoxGeometry(2, 0.01, 2, 32);
             if ((i + j) % 2 == 0) {
               var block = new THREE.Mesh(box, black_square);
             } else {
               var block = new THREE.Mesh(box, white_square);
             }
 
-            block.position.x = i * 2;
-            block.position.y = j * 2;
+            block.position.x = game_size - i * 2;
+            block.position.z = j * 2 - game_size;
             board_parts.push(block);
             scene.add(block);
           }
@@ -173,10 +178,9 @@
           var intersects = raycaster.intersectObjects(scene.children);
 
           if ( intersects.length > 0 ) {
-            var x = intersects[0].object.position.x / 2;
-            var y = intersects[0].object.position.y / 2;
+            var x = (game_size - intersects[0].object.position.x) / 2;
+            var y = (game_size + intersects[0].object.position.z) / 2;
 
-            console.log(x + ", " + y);
             actOnClick(x, y);
           } else {
             move.type = null;
@@ -193,14 +197,13 @@
         if (move.type == null) {
           // Start place
           var stones = { 0: "F", 2: "S", 4: "C" };
-          var players = { 0: "1"};
-          players[game_size + 1] = "2";
+          var players = [0, game_size + 1];
           if ((grid_x + 1) in players && grid_y in stones) {
             move.type = "place";
             move.place = null;
             move.extra = {
               stone: stones[grid_y],
-              owner: players[grid_x + 1],
+              owner: grid_x + 1,
             };
           // Start slide
           } else if (grid_x >= 0 && grid_x < game_size &&
