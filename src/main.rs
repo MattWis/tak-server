@@ -37,6 +37,17 @@ fn respond_html(body: String) -> IronResult<Response> {
     Ok(Response::with((content_type, status::Ok, html)))
 }
 
+fn respond_json(body: String) -> IronResult<Response> {
+    let content_type = "text/json".parse::<Mime>().unwrap();
+    Ok(Response::with((content_type, status::Ok, body)))
+}
+
+fn fail_json(reason: &str) -> IronResult<Response> {
+    let str = format!("{{\"status\": \"fail\", \"reason\": \"{}\" }}", reason);
+    respond_json(str)
+
+}
+
 fn respond_game(text: &tak::Game) -> IronResult<Response> {
     respond_html(format!("<body><pre>{}</pre><form method=\"POST\">
             <input type=\"text\" name=\"turn\"></input><br>
@@ -106,9 +117,7 @@ fn game_json(req: &mut Request) -> IronResult<Response> {
         map.insert(key.clone(), Match::new(5));
     }
     let game = &map.get(&key).unwrap().game;
-
-    let content_type = "text/json".parse::<Mime>().unwrap();
-    Ok(Response::with((content_type, status::Ok, json::encode(game).unwrap())))
+    respond_json(json::encode(game).unwrap())
 }
 
 fn claim_player(req: &mut Request) -> IronResult<Response> {
@@ -140,43 +149,57 @@ fn play_move(req: &mut Request) -> IronResult<Response> {
 
     let mut game = match map.get_mut(&key) {
         Some(game) => game,
-        None => return respond_html("No such game".into()),
+        None => return fail_json("No such game"),
     };
 
     let map = match req.get_ref::<params::Params>() {
         Ok(map) => map,
-        Err(_) => return respond_html("No params".into()),
+        Err(_) => return fail_json("No params"),
     };
 
     let turn: String = match map.get("turn") {
         Some(turn) => match turn {
             &params::Value::String(ref s) => s.clone(),
-            _ => return respond_html("Turn not a string".into()),
+            _ => return fail_json("Turn not a string"),
         },
-        None => return respond_html("No turn attribute".into()),
+        None => return fail_json("No turn attribute".into()),
     };
 
-    let player: String = match map.get("player") {
+    let player: tak::Player = match map.get("player") {
         Some(player) => match player {
-            &params::Value::String(ref s) => s.clone(),
-            _ => return respond_html("Player not a string".into()),
+            &params::Value::String(ref s) => if s == "1" {
+                tak::Player::One
+            } else if s == "2" {
+                tak::Player::Two
+            } else {
+                return fail_json("Invalid player");
+            },
+            _ => return fail_json("Player not a string"),
         },
-        None => return respond_html("No player attribute".into()),
+        None => return fail_json("No player attribute"),
     };
 
-    let player: tak::Player = if player == "1" {
-        tak::Player::One
-    } else if player == "2" {
-        tak::Player::Two
-    } else {
-        return respond_html("Invalid player".into());
+    let owner = match map.get("owner") {
+        Some(owner) => match owner {
+            &params::Value::String(ref s) => if s == "1" {
+                Some(tak::Player::One)
+            } else if s == "2" {
+                Some(tak::Player::Two)
+            } else {
+                None
+            },
+            _ => return fail_json("Owner not a string"),
+        },
+        None => None,
     };
 
-    match game.game.play(&turn, player) {
-        Ok(_) => respond_game(&game.game),
-        Err(_) => respond_html(format!("Illegal move: {}", turn)),
-    }
+    let json_data = match game.game.play(&turn, player, owner) {
+        Ok(_) => format!("{{\"move\": \"{}\", \"status\": \"success\" }}", turn),
+        Err(x) => format!("{{\"move\": \"{}\", \"status\": \"fail\", \"reason\": \"{}\" }}", turn, x),
+    };
+    respond_json(json_data)
 }
+
 fn view_game(_: &mut Request) -> IronResult<Response> {
     Ok(Response::with((status::Ok, Path::new("html/three.html"))))
 }

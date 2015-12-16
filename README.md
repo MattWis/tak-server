@@ -26,3 +26,4 @@ for the current input state.
 1. Game page: Display when game is won.
 2. Game page: Highlight things to make it more obvious what to click next.
 3. Game page: Show in-progress slides?
+4. Home page: Create games of different sizes

@@ -184,7 +184,7 @@
         }
       }
 
-      var move = { type: null, place: null, data: null, extra: null};
+      var move = { type: null, place: null, turn: null, extra: null};
       function actOnClick(grid_x, grid_y) {
         var xs = "abcdefgh";
         var ys = "12345678";
@@ -197,16 +197,25 @@
           players[game_size + 1] = "2";
           if ((grid_x + 1) in players && grid_y in stones) {
             move.type = "place";
-            move.data = stones[grid_y] + players[grid_x + 1];
             move.place = null;
+            move.extra = {
+              stone: stones[grid_y],
+              owner: players[grid_x + 1],
+            };
           // Start slide
           } else if (grid_x >= 0 && grid_x < game_size &&
                      grid_y >= 0 && grid_y < game_size) {
             var cell = grid[grid_y][grid_x].pieces;
             if (cell.length > 0) {
               move.type = "slide";
-              move.data = [];
-              move.extra = { num_moved: cell.length, len: cell.length, current: 0, x: grid_x, y: grid_y };
+              move.extra = {
+                data: [],
+                num_moved: cell.length,
+                len: cell.length,
+                current: 0,
+                x: grid_x,
+                y: grid_y
+              };
               move.place = xs[grid_x] + ys[grid_y];
             }
           }
@@ -215,6 +224,7 @@
           if (grid_x >= 0 && grid_x < game_size &&
               grid_y >= 0 && grid_y < game_size) {
             move.place = xs[grid_x] + ys[grid_y];
+            move.turn = move.extra.stone + move.place;
             postMove();
           } else {
             move.type = null;
@@ -225,23 +235,23 @@
           if ("<>+-".indexOf(move.place[2]) > -1) {
             if (grid_x == move.extra.x) {
               if (grid_y == move.extra.y) {
-                move.data[move.data.length - 1] += 1;
+                move.extra.data[move.extra.data.length - 1] += 1;
                 updateSlide(grid_x, grid_y);
               } else if (grid_y - move.extra.y == 1 && move.place[2] == "+") {
-                move.data.push(1);
+                move.extra.data.push(1);
                 updateSlide(grid_x, grid_y);
               } else if (move.extra.y - grid_y == 1 && move.place[2] == "-") {
-                move.data.push(1);
+                move.extra.data.push(1);
                 updateSlide(grid_x, grid_y);
               } else {
                 move.type = null;
               }
             } else if (grid_y == move.extra.y) {
               if (grid_x - move.extra.x == 1 && move.place[2] == ">") {
-                move.data.push(1);
+                move.extra.data.push(1);
                 updateSlide(grid_x, grid_y);
               } else if (move.extra.x - grid_x == 1 && move.place[2] == "<") {
-                move.data.push(1);
+                move.extra.data.push(1);
                 updateSlide(grid_x, grid_y);
               } else {
                 move.type = null;
@@ -275,12 +285,11 @@
         } else {
           console.log("WTF, filled out but not submitted turn");
         }
-        console.log(move);
       }
 
       function startSlide(grid_x, grid_y, c) {
         move.place += c;
-        move.data.push(1);
+        move.extra.data.push(1);
         updateSlide(grid_x, grid_y);
       }
 
@@ -290,24 +299,23 @@
         move.extra.current += 1;
         if (move.extra.current == move.extra.len) {
           // Prepare PTN move as move.place + move.data
-          var str = "";
-          for (var i = 0; i < move.data.length; i++) {
-            str += move.data[i];
+          move.turn = move.extra.num_moved + move.place;
+          for (var i = 0; i < move.extra.data.length; i++) {
+            move.turn += move.extra.data[i];
           }
-          move.place = move.extra.num_moved + move.place;
-          move.data = str;
           postMove();
         }
       }
 
       function postMove() {
-        var postData = { "turn": move.place + move.data,
-                         "player": player };
+        var postData = { "turn": move.turn,
+                         "player": player,
+                         "owner": move.extra.owner };
         console.log(postData);
 
         $.post("/game/" + gameId, postData, function(data, status, x) {
-          console.log(data);
           console.log(status);
+          console.log(data);
         });
         move.type = null;
       }
